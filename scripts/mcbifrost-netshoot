@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+current=$(pwd)
+if [ ! -f "${current}/docker-compose.yml" ]; then
+  echo "Expected that this script would be called from the docker-compose.yml directory"
+fi
+docker_compose_prefix=$(basename "${current}")
+docker_compose_network=$(sed -n "/networks:/{n;s/\s//g;s/://;p}" "${current}/docker-compose.yml")
+join_network="${docker_compose_prefix}_${docker_compose_network}"
+
+# provide options for the in-container bash script, then all mcrun arguments following '--'
+podman run -it --network="${join_network}" --cap-add=NET_ADMIN --cap-add=NET_RAW nicolaka/netshoot

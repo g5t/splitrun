@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+
+# check if the expected containers are running:
+declare -A containers
+for i in $(podman ps --format '{{.Names}}'); do
+  containers[$i]=1
+done
+for expected in broker forwarder writer efu; do
+  if [ ! ${containers[$expected]} ]; then
+    echo "Expected container '${expected}' to be running"
+    exit 1
+  fi
+done
+
+current=$(pwd)
+if [ ! -f "${current}/docker-compose.yml" ]; then
+  echo "Expected that this script would be called from the docker-compose.yml directory"
+fi
+docker_compose_prefix=$(basename "${current}")
+docker_compose_network=$(sed -n "/networks:/{n;s/\s//g;s/://;p}" "${current}/docker-compose.yml")
+join_network="${docker_compose_prefix}_${docker_compose_network}"
+
+filepath="$(realpath -s "$1")"
+INSTRUMENT_DIR=$(dirname "$filepath")
+INSTRUMENT="$(basename "$filepath")"
+# Remove the script name and {instrument file}:
+shift
+export ARGUMENTS="$*"
+
+echo "Execute instrument ${INSTRUMENT} in directory ${INSTRUMENT_DIR} with arguments ${ARGUMENTS}"
+
+now=$(date -u +%Y%m%dT%H%M%S)
+filename="${INSTRUMENT}_${now}.h5"
+
+
+broker="broker:29092"
+FORWARDER_CONFIG="ForwardConfig"
+WRITER_COMMAND="WriterCommand"
+WRITER_JOB="WriterJob"
+EVENT_SOURCE="caen"
+EVENT_TOPIC="SimulatedEvents"
+PARAMETER_TOPIC="SimulatedParameters"
+prefix="mcstas:"
+work="/work/"
+
+# provide options for the in-container bash script, then all mcrun arguments following '--'
+
+# The nexus structure (at the momement) is read from the provided instrument -- the origin of the coordinate system
+# is fixed to be a component named 'sample_stack' which must exist in the instrument
+podman run --network="${join_network}"\
+  --cap-add=NET_ADMIN --cap-add=NET_RAW\
+  -v "${INSTRUMENT_DIR}/:${work}:Z" -v "${current}:/extra:Z" \
+  --entrypoint "/extra/entrypoint-splitrun.sh"\
+  splitrun-nexus\
+	-b ${broker} -w ${work} -p ${prefix} -c ${FORWARDER_CONFIG}\
+	-o ${WRITER_COMMAND} -j ${WRITER_JOB} --event-source ${EVENT_SOURCE} --event-topic ${EVENT_TOPIC}\
+	--parameter-topic ${PARAMETER_TOPIC} --filename "${filename}"\
+	--origin "sample_stack"\
+	-- "${INSTRUMENT}" ${ARGUMENTS}
+
+
+# The writer stores its file *inside* the container, but we want it outside:
+echo "Copy ${filename} from the writer container to the instrument directory (it also REMAINS in the container)"
+podman cp writer:"/output/${filename}" "${INSTRUMENT_DIR}/."

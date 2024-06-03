@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+
+# check if the expected containers are running:
+declare -A containers
+for i in $(podman ps --format '{{.Names}}'); do
+  containers[$i]=1
+done
+for expected in broker writer; do
+  if [ ! ${containers[$expected]} ]; then
+    echo "Expected container '${expected}' to be running"
+    exit 1
+  fi
+done
+
+filepath="$(realpath -s "$1")"
+INSTRUMENT_DIR=$(dirname "$filepath")
+INSTRUMENT="$(basename "$filepath")"
+# Remove the script name and {instrument file}:
+shift
+
+OPTIONS=start-time:,stop-time:
+SHORT_OPTIONS=f:,t:
+! PARSED=$(getopt --options=$SHORT_OPTIONS --longoptions=$OPTIONS --name "$0" -- "$@")
+if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
+  exit 2
+fi
+eval set -- "$PARSED"
+[ -z ${START_TIME+x} ] && start_time="" || start_time="${START_TIME}"
+[ -z ${STOP_TIME+x} ] && stop_time="" || stop_time="${STOP_TIME}"
+while true; do
+  case "$1" in
+    -f|--start-time) start_time="$2"; shift 2 ;;
+    -t|--stop-time) stop_time="$2"; shift 2 ;;
+    --) shift; break ;;
+    *) echo "Programming error in rerun-local-splitrun-nexus"; exit 3 ;;
+  esac
+done
+
+
+echo "Write output from instrument ${INSTRUMENT} in directory ${INSTRUMENT_DIR} with data from ${start_time} to ${stop_time}"
+
+now=$(date -u +%Y%m%dT%H%M%S)
+filename="${INSTRUMENT%.*}_${now}.h5"
+
+
+broker="localhost:9092"
+FORWARDER_CONFIG="ForwardConfig"
+WRITER_COMMAND="ExternalWriterCommand"
+WRITER_JOB="ExternalWriterJob"
+EVENT_SOURCE="caen"
+EVENT_TOPIC="SimulatedEvents"
+PARAMETER_TOPIC="SimulatedParameters"
+prefix="mcstas:"
+
+# provide options for the in-container bash script, then all mcrun arguments following '--'
+
+# The nexus structure (at the momement) is read from the provided instrument -- the origin of the coordinate system
+# is fixed to be a component named 'sample_stack' which must exist in the instrument
+/home/g/PycharmProjects/splitrun-nexus/scripts/rerun-local-splitrun-nexus-impl \
+	-b ${broker} -w ${INSTRUMENT_DIR} -p ${prefix}\
+	-o ${WRITER_COMMAND} -j ${WRITER_JOB} --event-source ${EVENT_SOURCE} --event-topic ${EVENT_TOPIC}\
+	--parameter-topic ${PARAMETER_TOPIC} --filename "${filename}"\
+	--origin "sample_stack" --start-time "${start_time}" --stop-time "${stop_time}"\
+	-- "${INSTRUMENT}"
+
+## The writer stores its file *inside* the container, but we want it outside:
+# echo "Copy ${filename} from the writer container to the instrument directory"
+# podman cp writer:"/output/${filename}" "${INSTRUMENT_DIR}/."
+# podman exec writer rm "/output/${filename}"
+
+# Manipulate the produced file a bit:
+if test -f "${INSTRUMENT_DIR}/${filename}"; then
+	# force contiguous memory layout in the generated file (removes ability to append to datasets)
+	h5repack -l CONTI "${INSTRUMENT_DIR}/${filename}" "${INSTRUMENT_DIR}/${filename}.pack"
+	mv "${INSTRUMENT_DIR}/${filename}.pack" "${INSTRUMENT_DIR}/${filename}"
+	
+	# Finally, add the HDF5 representation of the instrument to the file
+	# copy the instrument's HDF5 representation into the file (which grows if forced into contiguous memory?!)
+	mp-insert-hdf5-instr --parent ${prefix%:*} --outfile "${INSTRUMENT_DIR}/${filename}" "${INSTRUMENT_DIR}/${INSTRUMENT}"
+else
+	echo "${INSTRUMENT_DIR}/${filename} does not exist. File writer failed."
+fi

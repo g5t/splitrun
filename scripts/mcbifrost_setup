@@ -1,8 +1,0 @@
-#!/usr/bin/env bash
-
-export EFU=bifrost_sep
-export EFU_CONFIG=~/Code/event-formation-unit/src/modules/bifrost/configs/bifrost.json
-export EFU_CALIBRATION=~/Code/event-formation-unit/src/modules/bifrost/configs/bifrostnullcalib.json
-export MONITOR_EFU_CONFIG=./four_monitors.json
-
-podman-compose up -d

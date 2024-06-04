@@ -1,2 +1,23 @@
 #!/bin/bash
-./splitrun-nexus ~/Code/mcstasscript-instruments/local_mcstas_folder/BIFROST.instr -n 1000000 ei=1:25 t=0.0015 a4=90
+# Stash the location of _this_ script file to know where the implementation resides
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
+
+#"${SCRIPT_DIR}/splitrun-nexus"\
+# ~/Code/mcstasscript-instruments/test_simple_bifrost/BIFROST.h5\
+# -n 10000 ei=2.7:0.25:3.2 t=0.0015 a4=90 mode_energy=0 --split-at=split_at\
+# --nmin=1000000 --nmax=1000000000
+
+#"${SCRIPT_DIR}/splitrun-nexus"\
+# ~/Code/mcstasscript-instruments/test_simple_bifrost/BIFROST.h5\
+# -n 50000000 ei=2.7:0.25:3.2 t=0.0015 a4=90 mode_energy=0 --split-at=split_at\
+# --nmin=100000000 --nmax=10000000000
+
+#"${SCRIPT_DIR}/splitrun-nexus"\
+# ~/Code/mcstasscript-instruments/test_simple_bifrost/BIFROST.h5\
+# -n 20000000 ei=2.3:0.05:2.8 t=0.0015 a4=90 mode_energy=0 --split-at=split_at\
+# --nmin=10000000 --nmax=10000000000
+
+"${SCRIPT_DIR}/splitrun-nexus"\
+ ~/Code/mcstasscript-instruments/test_simple_bifrost/BIFROST.h5\
+ -n 20000000 ei=2.5 t=0.0015 a4=90 mode_energy=0 --split-at=split_at\
+ --nmin=10000000 --nmax=10000000000

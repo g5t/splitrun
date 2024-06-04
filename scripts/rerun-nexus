@@ -11,6 +11,8 @@ for expected in broker writer; do
     exit 1
   fi
 done
+# Stash the location of _this_ script file to know where the implementation resides
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 
 filepath="$(realpath -s "$1")"
 INSTRUMENT_DIR=$(dirname "$filepath")
@@ -56,7 +58,7 @@ prefix="mcstas:"
 
 # The nexus structure (at the momement) is read from the provided instrument -- the origin of the coordinate system
 # is fixed to be a component named 'sample_stack' which must exist in the instrument
-/home/g/PycharmProjects/splitrun-nexus/scripts/rerun-local-splitrun-nexus-impl \
+"${SCRIPT_DIR}/rerun-nexus-impl" \
 	-b ${broker} -w ${INSTRUMENT_DIR} -p ${prefix}\
 	-o ${WRITER_COMMAND} -j ${WRITER_JOB} --event-source ${EVENT_SOURCE} --event-topic ${EVENT_TOPIC}\
 	--parameter-topic ${PARAMETER_TOPIC} --filename "${filename}"\

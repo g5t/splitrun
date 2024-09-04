@@ -5,7 +5,7 @@ declare -A containers
 for i in $(podman ps --format '{{.Names}}'); do
   containers[$i]=1
 done
-for expected in broker forwarder writer efu; do
+for expected in kafka forwarder writer efu; do
   if [ ! ${containers[$expected]} ]; then
     echo "Expected container '${expected}' to be running"
     exit 1
@@ -34,7 +34,7 @@ IMPL_PARAMS+=(-w ${INSTRUMENT_DIR})
 IMPL_PARAMS+=(-c "ForwardConfig")
 IMPL_PARAMS+=(-p ${prefix} --parameter-topic "SimulatedParameters")
 IMPL_PARAMS+=(-o "WriterCommand" -j "WriterJob")
-IMPL_PARAMS+=(--event-source "caen" --event-topic "SimulatedEvents")
+IMPL_PARAMS+=(--event-source "bifrost_detector" --event-topic "SimulatedEvents")
 IMPL_PARAMS+=(--filename "${filename}")
 IMPL_PARAMS+=(--origin "sample_stack")
 if test -f "${INSTRUMENT_DIR}/${INSTRUMENT%.*}.json"; then

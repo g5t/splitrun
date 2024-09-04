@@ -1,24 +1,64 @@
 version: "3"
 services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.3.2
+    container_name: zookeeper
+    networks:
+      - net
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+
   kafka:
-    image: quay.io/strimzi/kafka:latest-kafka-2.8.1-amd64
-    command:
-      [
-        "sh",
-        "-c",
-        "export CLUSTER_ID=$$(bin/kafka-storage.sh random-uuid) && bin/kafka-storage.sh format -t $$CLUSTER_ID -c config/kraft/server.properties && bin/kafka-server-start.sh config/kraft/server.properties --override advertised.listeners=$${KAFKA_ADVERTISED_LISTENERS} --override listener.security.protocol.map=$${KAFKA_LISTENER_SECURITY_PROTOCOL_MAP} --override listeners=$${KAFKA_LISTENERS}",
-      ]
+    image: confluentinc/cp-kafka:7.3.2
+    container_name: kafka
     ports:
+    # To learn about configuring Kafka for access across networks see
+    # https://www.confluent.io/blog/kafka-client-cannot-connect-to-broker-on-aws-on-docker-etc/
       - "9092:9092"
     expose:
       - "29092"
+    networks:
+      - net
+    depends_on:
+      - zookeeper
     environment:
-      LOG_DIR: "/tmp/logs"
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
-      KAFKA_LISTENERS: PLAINTEXT://:29092,PLAINTEXT_HOST://:9092,CONTROLLER://:9093
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,PLAINTEXT_INTERNAL://kafka:29092
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT_INTERNAL
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_MESSAGE_MAX_BYTES: 1048576000
+      KAFKA_SOCKET_REQUEST_MAX_BYTES: 1048576000
+
+  # kafka:
+  #   container_name: kafka
+  #   image: quay.io/strimzi/kafka:latest-kafka-2.8.1-amd64
+  #   command:
+  #     [
+  #       "sh",
+  #       "-c",
+  #       "export CLUSTER_ID=$$(bin/kafka-storage.sh random-uuid) && bin/kafka-storage.sh format -t $$CLUSTER_ID -c config/kraft/server.properties && bin/kafka-server-start.sh config/kraft/server.properties --override advertised.listeners=$${KAFKA_ADVERTISED_LISTENERS} --override listener.security.protocol.map=$${KAFKA_LISTENER_SECURITY_PROTOCOL_MAP} --override listeners=$${KAFKA_LISTENERS}",
+  #     ]
+  #   ports:
+  #     - "9092:9092"
+  #   expose:
+  #     - "29092"
+  #   networks:
+  #     - net
+  #   environment:
+  #     LOG_DIR: "/tmp/logs"
+  #     KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+  #     KAFKA_LISTENERS: PLAINTEXT://:29092,PLAINTEXT_HOST://:9092,CONTROLLER://:9093
+  #     KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+  #     KAFKA_MESSAGE_MAX_BYTES: 1048576000
+  #     KAFKA_SOCKET_REQUEST_MAX_BYTES: 1048576000
 
   graphite:
+    container_name: graphite
     image: graphiteapp/graphite-statsd
     ports:
       - "1080:80"
@@ -31,29 +71,43 @@ services:
       - "2023-2024"
       - "8125/udp"
       - "8126"
+    networks:
+      - net
 
   efu:
+    container_name: efu
     image: splitrun/efu:v1
     depends_on:
       - graphite
+      - kafka
     volumes:
       - ~/Code/event-formation-unit/src/modules/bifrost/configs/bifrost.json:/config.json:Z
       - ~/Code/event-formation-unit/src/modules/bifrost/configs/bifrostnullcalib.json:/calibration.json:Z
     ports:
       - "9000:9000/udp"
-      - "10800:888"
-    command: bifrost -f /config.json --calibration /calibration.json -b :29092 -g graphite
+      - "10800:8888"
+    networks:
+      - net
+    command: bifrost -f /config.json --calibration /calibration.json -b kafka:29092 -g graphite --monitor_every 5 --monitor_consecutive 2
 
   writer:
     image: splitrun/writer:v1
+    container_name: writer
+    depends_on:
+      - kafka
     volumes:
-      - ./output:output:Z
+      - /home/g/Code/splitrun/output:/output:z
     environment:
       BROKER: "kafka:29092"
       WORK_DIR: "/output/"
+    networks:
+      - net
 
   forwarder:
     image: splitrun/forwarder:v1
+    container_name: forwarder
+    depends_on:
+      - kafka
     network_mode: "host"
     environment:
       BROKER: "localhost:9092"
@@ -62,9 +116,9 @@ services:
 
 networks:
   net:
-    driver:bridge
-  driver_opts:
-    com.docker.network.driver.mtu: 9000
+    driver: bridge
+    driver_opts:
+      com.docker.network.driver.mtu: 9000
 
 
 

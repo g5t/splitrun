@@ -1,0 +1,13 @@
+#!/bin/bash
+# Stash the location of _this_ script file to know where the implementation resides
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
+
+"${SCRIPT_DIR}/splitrun-nexus"\
+ ~/Code/mccode-instruments/test_20240828/BIFROST.h5\
+ -n 20000000 order=14 ei=2.5 t=0.0002 a4=90 mode_energy=0 --split-at=split_at\
+ --nmin=10000000 --nmax=10000000000
+
+#"${SCRIPT_DIR}/splitrun-nexus"\
+# ~/Code/mccode-instruments/test_20240828/BIFROST.h5\
+# -n 20000000 ei=2.5 t=0.0015 a4=90 mode_energy=0:0.2:1.0 --split-at=split_at\
+# --nmin=10000000 --nmax=10000000000

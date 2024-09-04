@@ -40,7 +40,7 @@ eval set -- "$PARSED"
 [ -z ${FORWARDER_CONFIG+x} ] && forwarder_config="ForwardConfig" || forwarder_config="${FORWARDER_CONFIG}"
 [ -z ${WRITER_COMMAND+x} ] && writer_command="WriterCommand" || writer_command="${WRITER_COMMAND}"
 [ -z ${WRITER_JOB+x} ] && writer_job="WriterJob" || writer_job="${WRITER_JOB}"
-[ -z ${EVENT_SOURCE+x} ] && event_source="caen" || event_source="${EVENT_SOURCE}"
+[ -z ${EVENT_SOURCE+x} ] && event_source="bifrost_detector" || event_source="${EVENT_SOURCE}"
 [ -z ${EVENT_TOPIC+x} ] && event_topic="SimulatedEvents" || event_topic="${EVENT_TOPIC}"
 [ -z ${PARAMETER_TOPIC+x} ] && parameter_topic="SimulatedParameter" || parameter_topic="${PARAMETER_TOPIC}"
 [ -z ${TITLE+x} ] && title="" || title="${TITLE}"
@@ -105,14 +105,14 @@ mp-epics "$1" --prefix "${epics_prefix}" > "${now}_epics.log" 2>&1 &
 
 # Register the *required to be predefined* Kafka topics (others can be defined on the fly later)
 printf "=====\n(Pre)Register Kafka topics\n"
-mp-register-topics --broker "${broker}" "${parameter_topic}" "${event_topic}"
+mp-register-topics -q --broker "${broker}" "${parameter_topic}" "${event_topic}"
 # This list needs to be supplemented by the da00 topics if the file-writer is started before the simulation
 # Take the simplest route, and use the JSON file if it was provided
 if { [ -z "${structure_file+x}" ] || [ -z "${structure_file}" ]; }; then
   echo "Can not register da00 topics without providing the JSON structure file"
 else
   json_topics=($(grep "\s*\"topic\"" "${structure_file}" | sed 's/\s*"topic":\s*"\([^"]*\)".*/\1/'))
-  mp-register-topics --broker "${broker}" "${json_topics[@]}"
+  mp-register-topics -q --broker "${broker}" "${json_topics[@]}"
 fi
 
 

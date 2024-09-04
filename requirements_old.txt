@@ -1,0 +1,12 @@
+p4p @ git+https://github.com/mdavidsaver/p4p
+-e file:///home/g/Documents/ESS/Spectroscopy/CalibrationData
+-e file:///home/g/Code/mccode-antlr
+-e file:///home/g/PycharmProjects/mccode-conductor
+-e file:///home/g/Code/mccode-to-kafka
+-e file:///home/g/PycharmProjects/moreniius
+-e file:///home/g/PycharmProjects/restage
+
+# p4p mccode-antlr 
+# restage mccode-conductor (order?)
+# moreniius
+# mccode-to-kafka

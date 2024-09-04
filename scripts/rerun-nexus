@@ -5,7 +5,7 @@ declare -A containers
 for i in $(podman ps --format '{{.Names}}'); do
   containers[$i]=1
 done
-for expected in broker writer; do
+for expected in kafka writer; do
   if [ ! ${containers[$expected]} ]; then
     echo "Expected container '${expected}' to be running"
     exit 1
@@ -49,7 +49,7 @@ broker="localhost:9092"
 FORWARDER_CONFIG="ForwardConfig"
 WRITER_COMMAND="ExternalWriterCommand"
 WRITER_JOB="ExternalWriterJob"
-EVENT_SOURCE="caen"
+EVENT_SOURCE="bifrost_detector"
 EVENT_TOPIC="SimulatedEvents"
 PARAMETER_TOPIC="SimulatedParameters"
 prefix="mcstas:"

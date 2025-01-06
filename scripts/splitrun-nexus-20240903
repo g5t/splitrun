@@ -7,8 +7,27 @@ SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 # -n 20000000 order=14 ei=2.5 t=0.0002 a4=90 mode_energy=0 --split-at=split_at\
 # --nmin=10000000 --nmax=10000000000
 
+"${SCRIPT_DIR}/splitrun-nexus"\
+ ~/Code/mccode-instruments/test_phonon_20240903/BIFROST.h5\
+ -n 20000000 order=14 ei=2.5 t=0.0002 a3=0:5:45 a4=90 sound_speed=0.5 --split-at=split_at\
+ --nmin=10000000 --nmax=10000000000
 
 "${SCRIPT_DIR}/splitrun-nexus"\
  ~/Code/mccode-instruments/test_phonon_20240903/BIFROST.h5\
- -n 20000000 order=14 ei=2.5 t=0.0002 a4=90 sound_speed=0.5 --split-at=split_at\
+ -n 20000000 order=14 ei=2.5 t=0.0002 a3=1:5:46 a4=90 sound_speed=0.5 --split-at=split_at\
+ --nmin=10000000 --nmax=10000000000
+
+"${SCRIPT_DIR}/splitrun-nexus"\
+ ~/Code/mccode-instruments/test_phonon_20240903/BIFROST.h5\
+ -n 20000000 order=14 ei=2.5 t=0.0002 a3=2:5:47 a4=90 sound_speed=0.5 --split-at=split_at\
+ --nmin=10000000 --nmax=10000000000
+
+"${SCRIPT_DIR}/splitrun-nexus"\
+ ~/Code/mccode-instruments/test_phonon_20240903/BIFROST.h5\
+ -n 20000000 order=14 ei=2.5 t=0.0002 a3=3:5:48 a4=90 sound_speed=0.5 --split-at=split_at\
+ --nmin=10000000 --nmax=10000000000
+
+"${SCRIPT_DIR}/splitrun-nexus"\
+ ~/Code/mccode-instruments/test_phonon_20240903/BIFROST.h5\
+ -n 20000000 order=14 ei=2.5 t=0.0002 a3=4:5:49 a4=90 sound_speed=0.5 --split-at=split_at\
  --nmin=10000000 --nmax=10000000000

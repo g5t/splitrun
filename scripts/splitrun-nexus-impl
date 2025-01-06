@@ -135,6 +135,9 @@ if [[ ! -z ${structure_out} ]]; then
   WRITER_PARAMS+=(--ns-save "${structure_out}")
 fi
 
+SPLITRUN_PARAMS=(--parallel --broker "${broker}" --source "${monitor_source}"\
+	--mcpl-input-component "MCPL_input_once")
+
 status=0
 
 
@@ -148,7 +151,7 @@ fi
 
 if [ "${status}" -eq "0" ]; then
   printf "=====\nStart splitrun\n"
-  mp-splitrun --parallel --broker "${broker}" --source "${monitor_source}" "$@"  # the version with the monitor-forwarding callback
+  mp-splitrun "${SPLITRUN_PARAMS[@]}" "$@"  # the version with the monitor-forwarding callback
 
   if [ "${write_after}" == true ]; then
     printf "=====\nRun the file writer for a file from ${start_time} until now (writing starts now and takes some time)\n"

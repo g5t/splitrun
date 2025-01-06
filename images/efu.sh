@@ -50,16 +50,16 @@ mkdir -p $buildat/opt/repo
 mkdir -p $buildat/opt/build
 cp -r $(realpath $efu_dir)/* $buildat/opt/repo/.
 
-buildah run $builder cmake -S /opt/repo -B /opt/build -DCMAKE_INSTALL_PREFIX=/opt
-buildah run $builder cmake --build /opt/build --target install -j
+buildah run $builder cmake -S /opt/repo -B /opt/build -DCMAKE_BUILD_TYPE=Release
+buildah run $builder cmake --build /opt/build --target allefus copylibs -j
 
 # Create the runtime container
 runner=$(buildah from busybox:glibc)
 runat=$(buildah mount $runner)
 
 # Copy over the binary and libraries
-cp $buildat/opt/bin/* $runat/usr/bin/
-cp $buildat/opt/lib/*.so* $runat/lib64/
+cp $buildat/opt/build/bin/* $runat/usr/bin/
+cp $buildat/opt/build/lib/*.so* $runat/lib64/
 # Copy over system libraries, identified with
 # LD_TRACE_LOADED_OBJECTS=1 bifrost
 for lib in crypt gcc_s stdc++; do

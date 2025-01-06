@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 #
 # Orchestrate the communication between McStas and the ECDC stack
 #
@@ -16,13 +16,22 @@
 # Allow this bash script to use job controls:
 set -m -o errexit -o pipefail -o noclobber -o nounset
 
-# (Maybe bad) specialize this script to work under BusyBox where bash is not available
-# getopt exists but has slightly different syntax
+# Ensure the required getopt for option handling is available:
+! getopt --test >> /dev/null
+if [[ ${PIPESTATUS[0]} -ne 4 ]]; then
+  # shellcheck disable=SC2016
+  echo '`getopt --test` failed in this environment. Install "enhanced getopt" on your system.'
+  exit 1
+fi
 
 # {option}: == one required argument
 OPTIONS=broker:,work:,prefix:,command:,job:
 SHORT_OPTIONS=b:,w:,c:,j:
-PARSED=$(getopt -o $SHORT_OPTIONS -l $OPTIONS -- "$@") || exit 1
+! PARSED=$(getopt --options=$SHORT_OPTIONS --longoptions=$OPTIONS --name "$0" -- "$@")
+if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
+  # getopt complained bout wrong arguments to stdout
+  exit 2
+fi
 eval set -- "$PARSED"
 
 [ -z ${BROKER+x} ] && broker="localhost:9092" || broker="${BROKER}"

@@ -3,5 +3,5 @@ nicess @ git+https://github.com/g5t/instrument-components
 mccode-antlr==0.7.1
 mccode-plumber @ git+https://github.com/g5t/mccode-plumber
 mccode-to-kafka==0.2.1
-moreniius==0.2.3
+moreniius==0.2.4
 restage==0.3.2

@@ -60,23 +60,23 @@ if [ ! -f "$writer_file" ]; then
 fi
 
 
-container=$(buildah from almalinux:9)
+container=$(buildah from alpine:latest)
 
-buildah run $container dnf -y install cmake python3-pip git gcc gcc-c++
-buildah run $container dnf clean all
-buildah run $container rm -rf /var/cache/yum
-buildah run $container python3 -m pip install "conan<2"
+buildah run $container apk add cmake make py3-pip git gcc g++
+buildah run $container python3 -m pip install --root-user-action=ignore --break-system-packages "conan<2"
 buildah run $container conan profile new --detect default
 buildah run $container conan config install https://github.com/ess-dmsc/conan-configuration.git
 buildah run $container conan profile update settings.compiler.libcxx=libstdc++11 default
+buildah run $container conan profile update settings.compiler.version=12 default
 
+# Actually building the conan dependencies fails. This is a waste of time.
 for file in $efu_file $writer_file; do
   buildah copy $container $file conanfile.txt
   buildah run $container conan install conanfile.txt -pr default -g=cmake --build=outdated --no-imports
   buildah run $container rm conanfile.txt
 done
 
-image=splitrun/base:v1
+image=splitrun/base:v2
 buildah config --label name=$image $container
 buildah unmount $container
 buildah commit $container $image

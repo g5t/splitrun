@@ -11,7 +11,7 @@
 set -o errexit -o pipefail -o noclobber -o nounset
 
 # Default value(s)
-efu_dir=./writer-repo
+writer_dir=./writer-repo
 
 ### All of this to have a single optional flagged input:
 ! getopt --test >> /dev/null
@@ -39,6 +39,7 @@ done
 
 # Make sure we have a copy of the repository
 if [ ! -d "$writer_dir" ]; then
+  echo "The provided ${writer_dir} is not a directory!"
   git clone https://gitlab.esss.lu.se/ecdc/ess-dmsc/kafka-to-nexus.git "$writer_dir"
 fi
 
@@ -46,25 +47,50 @@ fi
 builder=$(buildah from splitrun/base:v1)
 buildat=$(buildah mount $builder)
 # 
+
+rwd=$(realpath $writer_dir)
+rpd=$(dirname $rwd)
+
 mkdir -p $buildat/opt/repo
-mkdir -p $buildat/opt/build
-cp -r $(realpath $writer_dir)/* $buildat/opt/repo/.
+rsync -a $rwd/ $buildat/opt/repo/.
 
-buildah run $builder cmake -S /opt/repo -B /opt/build
-buildah run $builder cmake --build /opt/build -j
+buildah run $builder cmake -S /opt/repo -B /opt/repo/build -DCMAKE_BUILD_TYPE=Release
+buildah run $builder cmake --build /opt/repo/build -j --target kafka-to-nexus
 
-# Create the runtime container
-runner=$(buildah from busybox:glibc)
+rsync -a $buildat/opt/repo/ $rpd/.
+
+# A more-complete runtime is needed since we need access to Python :(
+# # Create the runtime container
+# runner=$(buildah from busybox:glibc)
+# runat=$(buildah mount $runner)
+
+# # Copy over the binary and libraries
+# cp $buildat/opt/build/bin/* $runat/usr/bin/
+# cp $buildat/opt/build/lib/*.so* $runat/lib64/
+# # Copy over system libraries, identified with
+# # LD_TRACE_LOADED_OBJECTS=1 bifrost
+# for lib in crypt gcc_s stdc++; do
+#   cp $buildat/lib64/lib$lib.so* $runat/lib64
+# done
+
+runner=$(buildah from almalinux:9)
 runat=$(buildah mount $runner)
-
 # Copy over the binary and libraries
-cp $buildat/opt/build/bin/* $runat/usr/bin/
-cp $buildat/opt/build/lib/*.so* $runat/lib64/
-# Copy over system libraries, identified with
-# LD_TRACE_LOADED_OBJECTS=1 bifrost
-for lib in crypt gcc_s stdc++; do
-  cp $buildat/lib64/lib$lib.so* $runat/lib64
-done
+cp $buildat/opt/repo/build/bin/* $runat/usr/bin/
+cp $buildat/opt/repo/build/lib/*.so* $runat/lib64/
+cp $buildat/opt/repo/src/Version.h $runat/.
+
+# Install Python and the plumber utilities
+buildah run $runner dnf -y install python3-pip git 
+buildah run $runner dnf clean all 
+buildah run $runner rm -rf /var/cache/yum
+buildah run $runner python3 -m pip install git+https://github.com/g5t/mccode-plumber.git@v0.3.7
+
+# Copy-over the entrypoint script
+buildah copy $runner entrypoints/entrypoint-writer.sh entrypoint.sh
+buildah run "$runner" chmod +x entrypoint.sh
+# Make it the default entrypoint
+buildah config --entrypoint /entrypoint.sh "${runner}"
 
 # Now we're done with the build image
 buildah unmount $builder

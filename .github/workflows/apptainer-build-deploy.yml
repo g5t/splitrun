@@ -21,9 +21,10 @@ jobs:
 
       - name: Build
         run: |
-          singularity build splitrun.sif apptainer/splitrun.def
+          cd apptainer
+          singularity build splitrun.sif splitrun.def
 
       - name: Deploy
         run: |
           echo ${{ secrets.GITHUB_TOKEN }} | singularity remote login -u ${{ secrets.GHCR_USERNAME }} --password-stdin oras:://ghcr.io
-          singularity push splitrun.cif oras::/ghcr.io/${GITHUB_REPOSITORY}:${tag}
+          singularity push apptainer/splitrun.cif oras::/ghcr.io/${GITHUB_REPOSITORY}:${tag}

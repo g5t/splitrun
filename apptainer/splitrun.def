@@ -11,7 +11,7 @@ writer_revision="e5814ab"
 forwarder_branch="splitrun"
 forwarder_remote="https://github.com/g5t/ess-forwarder.git@splitrun"
 forwader_revision="33d109"
-plumber_remote="https://github.com/g5t/mccode-plumber.git"
+plumber_version="0.8.1"
 
 
 %files
@@ -27,7 +27,7 @@ apt -y install pipx python3-pip python3-venv build-essential cmake git python3-p
 export PATH=/root/.local/bin:$PATH
 pipx install "conan==1.66.0"
 pipx install auditwheel
-python3 -m pip install --break-system-packages git+{{ plumber_remote }} git+{{ forwarder_remote }}
+python3 -m pip install --break-system-packages "mccode-plumber=={{ plumber_version }}" git+{{ forwarder_remote }}
 conan profile new --detect default
 conan profile update settings.compiler.libcxx=libstdc++11 default
 conan remote add ecdc-conan-release https://artifactory.esss.lu.se/artifactory/api/conan/ecdc-conan-release
@@ -119,14 +119,6 @@ for binary in kafka-to-nexus; do
   fi  
 done
 for binary in file-maker template-maker; do
-  echo -n "Checking whether ${binary} provides '--help' ... "
-  returned=$("$binary" --help)
-  exitcode=$?
-  test $exitcode -eq 0 && echo "yes!" || echo "no!"
-  test_result=$exitcode||$test_result
-done
-for name in epics epics-update forwarder-setup forwarder-teardown insert-hdf5-instr register-topics splitrun writer-kill writer-killall writer-list writer-wait writer-write; do
-  binary="mp-${name}"
   echo -n "Checking whether ${binary} provides '--help' ... "
   returned=$("$binary" --help)
   exitcode=$?

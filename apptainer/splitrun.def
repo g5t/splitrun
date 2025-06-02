@@ -52,7 +52,7 @@ chmod +x /usr/bin/launch-writer
 chmod +x /usr/bin/launch-forwarder
 
 rm -rf /efu /writer /root/.local /root/.conan /copylibs.py
-apt -y remove pipx build-essential cmake git
+apt -y remove pipx cmake
 apt -y autoremove
 apt clean
 

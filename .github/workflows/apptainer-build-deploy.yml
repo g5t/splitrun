@@ -12,20 +12,33 @@ jobs:
     permissions:
       contents: read
       packages: write
-    container:
-      image: quay.io/singularity/singularity:v4.3.1
-      options: --privileged
     name: Build and Deploy 'Tainer
     steps:
+      - name: Install Apptainer
+        uses: uw-psych/apptainer-actions/setup@main
+      
+      - name: Clear disk space
+        uses: uw-psych/apptainer-actions/make-disk-space@main
+
       - name: Check out
         uses: actions/checkout@v4
 
-      - name: Build
+      - name: Set tag
+        shell: bash
         run: |
-          cd apptainer
-          singularity build splitrun.sif splitrun.def
+          if [[ "${GITHUB_REF_TYPE:-}" == "tag" ]]; then
+            case "${GITHUB_REF_NAME:-"} in
+              v?*) IMAGE_VERSION="${GITHUB_REF_NAME#v}";;
+              *) IMAGE_VERSION="latest";;
+            esac
+            echo "IMAGE_VERSION=${IMAGE_VERSION}" >> "${GITHUB_ENV}"
+          fi
 
-      - name: Deploy
-        run: |
-          echo ${{ secrets.GITHUB_TOKEN }} | singularity remote login -u ${{ secrets.GHCR_USERNAME }} --password-stdin oras:://ghcr.io
-          singularity push apptainer/splitrun.cif oras::/ghcr.io/${GITHUB_REPOSITORY}:${tag}
+      - name: Build and push image
+        uses: uw-psych/apptainer-actions/build-and-push@main
+        with:
+          name: splitrun
+          deffiles-rootdir: apptainer
+          deffile: spltrun.def
+          image-version: ${{ env.IMAGE_VERSION }}
+          

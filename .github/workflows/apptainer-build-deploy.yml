@@ -22,6 +22,13 @@ jobs:
 
       - name: Check out
         uses: actions/checkout@v4
+        with:
+          sparse-checkout: apptainer
+          sparse-checkout-cone-mode: false
+
+      - name: Move files
+        run: |
+          mv apptainer/* .
 
       - name: Set tag
         shell: bash
@@ -35,10 +42,8 @@ jobs:
           fi
 
       - name: Build and push image
-        working-directory: apptainer
         uses: uw-psych/apptainer-actions/build-and-push@main
         with:
-          name: splitrun
           deffile: splitrun.def
           image-version: ${{ env.IMAGE_VERSION }}
           

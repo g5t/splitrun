@@ -39,6 +39,6 @@ jobs:
         with:
           name: splitrun
           deffiles-rootdir: apptainer
-          deffile: spltrun.def
+          deffile: splitrun.def
           image-version: ${{ env.IMAGE_VERSION }}
           

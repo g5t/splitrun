@@ -1,0 +1,129 @@
+Bootstrap: docker
+From: debian:12
+
+%arguments
+efu_branch="master"
+efu_remote="https://github.com/ess-dmsc/event-formation-unit.git"
+efu_revision="b72ef87"
+writer_branch="main"
+writer_remote="https://gitlab.esss.lu.se/ecdc/ess-dmsc/kafka-to-nexus.git"
+writer_revision="e5814ab"
+forwarder_branch="splitrun"
+forwarder_remote="https://github.com/g5t/ess-forwarder.git@splitrun"
+forwader_revision="33d109"
+plumber_version="0.8.1"
+
+
+%files
+copylibs.py /copylibs.py
+0001_filewriter_bump-conanfile.patch /filewriter.patch
+entrypoint-writer.sh /usr/bin/launch-writer
+entrypoint-forwarder.sh /usr/bin/launch-forwarder
+
+
+%post
+apt -y update
+apt -y install pipx python3-pip python3-venv build-essential cmake git python3-packaging python3-yaml libaec-dev
+export PATH=/root/.local/bin:$PATH
+pipx install "conan==1.66.0"
+pipx install auditwheel
+python3 -m pip install --break-system-packages "mccode-plumber=={{ plumber_version }}" git+{{ forwarder_remote }}
+conan profile new --detect default
+conan profile update settings.compiler.libcxx=libstdc++11 default
+conan remote add ecdc-conan-release https://artifactory.esss.lu.se/artifactory/api/conan/ecdc-conan-release
+
+git clone -b {{ efu_branch }} --depth 1 {{ efu_remote }} /efu/repo
+cmake -S /efu/repo -B /efu/build -DCMAKE_BUILD_TYPE=Release
+cmake --build /efu/build --target allefus -j
+/root/.local/pipx/venvs/auditwheel/bin/python /copylibs.py -o /lib/ -d conan /efu/build/bin/*
+mv /efu/build/bin/* /usr/bin/.
+
+git clone -b {{ writer_branch }} --depth 1 {{ writer_remote}} /writer/repo
+mv /filewriter.patch /writer/repo/. && cd /writer/repo && git apply filewriter.patch && cd /
+cmake -S /writer/repo -B /writer/build -DCMAKE_BUILD_TYPE=Release
+cmake --build /writer/build --target kafka-to-nexus -j
+cmake --build /writer/build --target file-maker -j
+cmake --build /writer/build --target template-maker -j
+/root/.local/pipx/venvs/auditwheel/bin/python /copylibs.py -o /lib/ -d conan /writer/build/bin/*
+/root/.local/pipx/venvs/auditwheel/bin/python /copylibs.py -o /lib/ -d build /writer/build/bin/*
+mv /writer/build/bin/* /usr/bin/.
+
+chmod +x /usr/bin/launch-writer
+chmod +x /usr/bin/launch-forwarder
+
+rm -rf /efu /writer /root/.local /root/.conan /copylibs.py
+apt -y remove pipx cmake
+apt -y autoremove
+apt clean
+
+%environment
+export LC_ALL=C
+export EFU_VERSION={{ efu_branch }}-{{ efu_revision }}
+export FILEWRITER_VERSION={{ writer_branch }}-{{ writer_revision }}
+
+%labels
+Version 1.0
+
+%help
+Data collection utilities for the European Spallation Source.
+Event Formation Unit binaries:
+	bifrost  - the indirect geometry time-of-flight spectrometer, BIFROST
+	cbm      - beam monitors used a multiple instruments
+	cspec    - the direct geometry time-of-flight spectrometer, CSPEC
+	dream    - the powder diffractometer, DREAM
+	freia    - the reflectometer, FREIA
+	loki     - the small angle scattering diffractometer, LOKI
+	miracles - the back scattering time-of-flight spectrometer, MIRACLES
+	nmx      - the macromollecular single crystal diffractometer, NMX
+	timepix3 - the TimePix3 clustering photon imaging detector, used at ODIN
+	trex     - the direct geometry time-of-flight spectrometer, TREX
+File Writer binaries:
+	kafkfa-to-nexus - the worker responsible for writing streams to NeXus files
+McCode Plumber programs:
+	mc-epics              - Configure and run an EPICS mailbox server to host instrument setting parameter value updates 
+	mp-epics-update       - Send 'key value' pair updates to a running EPICS mailbox server
+	mp-forwarder-setup    - Inform the Forwarder which instrument setting parameters should be forwarded to Kafka
+	mp-forwarder-teardown - Inform the Forwarder to stop sending instrument setting parameter updates
+	mp-insert-hdf5-instr  - Add a serialized form of the provided instrument to a new or existing HDF5 file
+	mp-register-topics    - Ensure that the specified stream topic names exist on a configurable Kafka service
+	mp-splitrun           - Use 'restage.splitrun' with McCode histogram (monitor) sending callbacks for Kafka integration
+	mp-writer-from        - Print the current time as needed to specify, e.g., the start time in a call to 'mp-writer-write'
+	mp-writer-kill        - Send a File Writer command to stop a specified job
+	mp-writer-killall     - Send a File Writer command to stop all jobs
+	mp-writer-list        - List known File Writer jobs
+	mp-writer-wait        - Sleep until the specified File Writer job has finished
+	mp-writer-write       - Send a File Writer command to start a job, controlling start and optionally stop time
+Utilities:
+	launch-writer    - create a new kafka-to-nexus file writer, optionally using some sensible defaults
+	launch-forwarder - create a EPICS to Kafka forwarder, optionally using some sensible defaults
+	
+
+%test
+test_result=0
+for binary in bifrost cbm cspec dream freia loki miracles nmx timepix3 trex; do
+  echo -n "Checking for correct ${binary} version (${EFU_VERSION}) ... "
+  if ($binary --version | grep -q "{{ efu_branch }}-{{ efu_revision }}"); then
+    echo "success!"
+  else
+    echo "failure!"
+    test_result=1
+  fi  
+done
+for binary in kafka-to-nexus; do
+  echo -n "Checking for correct ${binary} version (${FILEWRITER_VERSION}) ... "
+  if ($binary --version | grep -q "{{ writer_branch }}-{{ writer_revision }}"); then
+    echo "success!"
+  else
+    echo "failure!"
+    test_result=1
+  fi  
+done
+for binary in file-maker template-maker; do
+  echo -n "Checking whether ${binary} provides '--help' ... "
+  returned=$("$binary" --help)
+  exitcode=$?
+  test $exitcode -eq 0 && echo "yes!" || echo "no!"
+  test_result=$exitcode||$test_result
+done
+exit ${test_result}
+

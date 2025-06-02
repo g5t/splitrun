@@ -1,0 +1,25 @@
+From 073bbafe6907f0260d5600c78ceb6d2ad1ce9e60 Mon Sep 17 00:00:00 2001
+From: Gregory Tucker <gregory.tucker@ess.eu>
+Date: Fri, 30 May 2025 13:34:58 +0000
+Subject: [PATCH] bump conanfile
+
+---
+ conanfile.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/conanfile.txt b/conanfile.txt
+index ab56e74..f73b9fd 100644
+--- a/conanfile.txt
++++ b/conanfile.txt
+@@ -2,7 +2,7 @@
+ gtest/1.11.0
+ fmt/8.1.1
+ h5cpp/0.7.1@ess-dmsc/stable
+-zlib/1.2.12
++zlib/1.3.1
+ librdkafka/2.8.0
+ nlohmann_json/3.10.5
+ streaming-data-types/13dd32d@ess-dmsc/stable
+-- 
+2.39.5
+

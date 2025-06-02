@@ -1,0 +1,49 @@
+name: Apptainer Build Deploy
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches: main
+
+jobs:
+  build-container:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    name: Build and Deploy 'Tainer
+    steps:
+      - name: Install Apptainer
+        uses: uw-psych/apptainer-actions/setup@main
+      
+      - name: Clear disk space
+        uses: uw-psych/apptainer-actions/make-disk-space@main
+
+      - name: Check out
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: apptainer
+          sparse-checkout-cone-mode: false
+
+      - name: Move files
+        run: |
+          mv apptainer/* .
+
+      - name: Set tag
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF_TYPE:-}" == "tag" ]]; then
+            case "${GITHUB_REF_NAME:-}" in
+              v?*) IMAGE_VERSION="${GITHUB_REF_NAME#v}";;
+              *) IMAGE_VERSION="latest";;
+            esac
+            echo "IMAGE_VERSION=${IMAGE_VERSION}" >> "${GITHUB_ENV}"
+          fi
+
+      - name: Build and push image
+        uses: uw-psych/apptainer-actions/build-and-push@main
+        with:
+          deffile: splitrun.def
+          image-version: ${{ env.IMAGE_VERSION }}
+          

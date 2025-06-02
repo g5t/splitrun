@@ -35,10 +35,10 @@ jobs:
           fi
 
       - name: Build and push image
+        working-directory: apptainer
         uses: uw-psych/apptainer-actions/build-and-push@main
         with:
           name: splitrun
-          deffiles-rootdir: apptainer
           deffile: splitrun.def
           image-version: ${{ env.IMAGE_VERSION }}
           
